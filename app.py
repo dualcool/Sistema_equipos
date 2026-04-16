@@ -1,15 +1,20 @@
 from flask import Flask, render_template, request, jsonify, session, redirect
 from database import db, Equipo, Usuario
 import os
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'clave_segura'
 
-# 🔥 BASE DE DATOS DINÁMICA (IMPORTANTE)
+# 🔐 SECRET KEY (usa variable de entorno en producción)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev')
+
+# 🌐 IMPORTANTE PARA RENDER (proxy / https)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# 🔥 BASE DE DATOS DINÁMICA
 database_url = os.getenv('DATABASE_URL')
 
 if database_url:
-    # Render usa postgres, a veces viene con postgres://
     database_url = database_url.replace("postgres://", "postgresql://")
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
@@ -19,7 +24,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 
-# 🔥 CREAR TABLAS Y ADMIN
+# 🔧 CREAR TABLAS Y USUARIO ADMIN
 with app.app_context():
     db.create_all()
 
@@ -29,7 +34,7 @@ with app.app_context():
         db.session.add(admin)
         db.session.commit()
 
-# LOGIN
+# 🔐 LOGIN
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -43,12 +48,13 @@ def login():
 
     return render_template('login.html')
 
+# 🔓 LOGOUT
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     return redirect('/login')
 
-# PROTECCIÓN
+# 🛡️ PROTECCIÓN
 @app.route('/')
 def index():
     if 'user' not in session:
@@ -57,7 +63,7 @@ def index():
     equipos = Equipo.query.order_by(Equipo.id.desc()).all()
     return render_template('index.html', equipos=[e.to_dict() for e in equipos])
 
-# API
+# 📡 API
 @app.route('/api/equipos')
 def api_equipos():
     return jsonify([e.to_dict() for e in Equipo.query.all()])
@@ -98,6 +104,6 @@ def eliminar(id):
     db.session.commit()
     return jsonify({'success': True})
 
-# 🔥 IMPORTANTE PARA RENDER
+# 🚀 ENTRYPOINT
 if __name__ == '__main__':
     app.run()
