@@ -1,0 +1,4 @@
+body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
+.card { border-radius: 15px; }
+.table th { font-weight: 600; }
+.btn-sm { padding: .25rem .5rem; font-size: .875rem; }
